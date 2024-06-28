@@ -3,240 +3,275 @@ from tkinter import messagebox
 import random
 
 #-----Global Variables-------------
-rows = 4
-columns = 4
-grid = [[" " for _ in range(6)] for _ in range(6)]
-buttons = [[" " for _ in range(4)] for _ in range(4)]
+rows = 8
+columns = 8
+grid = [[" " for _ in range(rows+2)] for _ in range(columns+2)]
+buttons = [[" " for _ in range(rows)] for _ in range(columns)]
+firstClick = True
 #---------------------------------
 
-
-def buttonClick(row, col):
-    global grid, buttons
-
-    if grid[row+1][col+1] == " ":
-        bombs = checkSurrondingsBomb(row+1,col+1)
-        buttons[row][col].config(text=str(bombs))
-        #checkSurroundings(row, col)
-    else:
-        buttons[row][col].config(text="X")
-        #gameOver()
-
-
-
-def displayGame(root):
-    menuFrame.pack_forget()  # Hide the main menu frame
-    gameStart(root)  # Create and show the settings frame
-
-
-
-def gameStart(root):
-    global rows, columns, buttons
-    gameScreen = tk.Frame(root, padx=100, pady=100)
-    gameScreen.pack()
-
-    generateMines()
-
-    for row in grid:
-        # Join elements of the row with a space and add dividers between them
-        print(" | ".join(map(str, row)))
-        # Print a horizontal line as a divider between rows
-        print("-" * (len(row) * 4 - 1))  # Adjust the multiplier for longer numbers
+def buttonClick(row, col, root):
+    global grid, buttons, firstClick
     
+    if firstClick:
+        firstClickGridChange(row + 1, col + 1)
+        firstClickChange(row, col)
+    else:
+        if grid[row + 1][col + 1] == " ":
+            bombs = checkSurrondingsBomb(row + 1, col + 1)
+            buttons[row][col].config(text=str(bombs))
+            if bombs == 0:
+                revealConnectedCells(row, col)
+            win = checkWinner()
+            if win:
+                showWinner(root)
+                revalAll()
+        else:
+            buttons[row][col].config(text="X", fg="red")
+            showGameOver(root)
 
-    for row in range(rows):
-        for col in range(columns):
-            button = tk.Button(gameScreen, text= buttons[row][col], font='Helvetica 20 bold', height=1, width=3,
-                           command=lambda row=row, col=col: buttonClick(row, col))
-            button.grid(row=row, column=col)
-            buttons[row][col] = button
 
-
-
-#--------------Functions to check the surrondings---------------------------------
-def checkSurrondingsBomb(row, column): #function checks the surronding for any bombs, returns the number of bombs found
+def checkSurrondingsBomb(row, column):
     reVal = 0
-    if grid[row-1][column-1] == "X":
+    if grid[row - 1][column - 1] == "X":
         reVal += 1
-
-    if grid[row-1][column] == "X":
+    if grid[row - 1][column] == "X":
         reVal += 1
-
-    if grid[row-1][column+1] == "X":
+    if grid[row - 1][column + 1] == "X":
         reVal += 1
-
-    if grid[row][column-1] == "X":
+    if grid[row][column - 1] == "X":
         reVal += 1
-
-    if grid[row][column+1] == "X":
+    if grid[row][column + 1] == "X":
         reVal += 1
-
-    if grid[row+1][column-1] == "X":
+    if grid[row + 1][column - 1] == "X":
         reVal += 1
-
-    if grid[row+1][column] == "X":
+    if grid[row + 1][column] == "X":
         reVal += 1
-
-    if grid[row+1][column+1] == "X":
+    if grid[row + 1][column + 1] == "X":
         reVal += 1
     return reVal
 
-#This function will be used to help create that chain reaction of when a user selects a section on the map, it also opens any other sections next
-#to it when their is no bombs
-def checkSurroundings(row, col): 
-    global grid, buttons, columns, rows
 
-    if (row < 0 or row >= rows) or (col < 0 or col >= columns):
-        return
+
+def revealConnectedCells(row, col):
+    global grid, buttons, rows, columns
+
+    # Directions including diagonals
+    directions = [(-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1)]
     
-
-    if grid[row][col] == "X":
-        return
+    # Stack for Depth-First Search (DFS)
+    stack = [(row, col)]
     
-    if grid[row][col] != " ":
-        return
+    # Set for tracking visited cells
+    visited = set()
 
-    # Count the number of bombs surrounding the cell
-    bombs = checkSurrondingsBomb(row, col)
-    buttons[row][col].config(text=str(bombs))
+    while stack:
+        current_row, current_col = stack.pop()
 
-    
-    # Check all eight possible surrounding cells
-    checkSurroundings(row, col - 1)  # left
-    checkSurroundings(row, col + 1)  # right
-    checkSurroundings(row - 1, col)  # up
-    checkSurroundings(row + 1, col)  # down
-    checkSurroundings(row - 1, col - 1)  # top-left
-    checkSurroundings(row - 1, col + 1)  # top-right
-    checkSurroundings(row + 1, col - 1)  # bottom-left
-    checkSurroundings(row + 1, col + 1)  # bottom-right
+        if (current_row, current_col) in visited:
+            continue
+        visited.add((current_row, current_col))
 
-    
+        # Skip if out of bounds
+        if current_row < 0 or current_row >= rows or current_col < 0 or current_col >= columns:
+            continue
 
-#------------------------------------------------------------
+        # Skip if cell contains a bomb
+        if grid[current_row + 1][current_col + 1] == "X":
+            continue
+
+        # Skip if cell is already revealed
+
+        bombs = checkSurrondingsBomb(current_row + 1, current_col + 1)
+        buttons[current_row][current_col].config(text=str(bombs))
+
+        # If there are no bombs around the current cell, reveal adjacent cells
+        if bombs == 0:
+            for deltaRow, deltaCol in directions:
+                newRow, newCol = current_row + deltaRow, current_col + deltaCol
+                if (newRow < 0 or newRow >= rows) or (newCol < 0 or newCol >= columns):
+                    if (newRow, newCol) not in visited:
+                        stack.append((newRow, newCol))
+                else:
+                    if (newRow, newCol) not in visited or buttons[newRow][newCol]["text"] != " ":
+                        stack.append((newRow, newCol))
 
 
 
+def revalAll():
+    global grid, buttons, rows, columns
 
-def gameOver():
+    for row in range(rows):
+        for col in range(columns):
+            if buttons[row][col]["text"] == " ":
+                buttons[row][col].config(text=str(grid[row + 1][col + 1]), fg="red")
+
+
+def firstClickChange(row, col):
+    global firstClick, grid, buttons, rows, columns
+
+    firstClick = False
+
+    buttons[row][col].config(text=str(checkSurrondingsBomb(row + 1, col + 1)))
+
+    # Define the directions to check the surrounding cells
+    directions = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+
+    for drow, dcol in directions:
+        new_row = row + drow
+        new_col = col + dcol
+
+        # Check if the new position is within the grid boundaries
+        if 0 <= new_row < rows and 0 <= new_col < columns:
+            bombs = checkSurrondingsBomb(new_row + 1, new_col + 1)
+            buttons[new_row][new_col].config(text=str(bombs))
+            
+
+def firstClickGridChange(row, col):
+    grid[row][col] = " "
+
+    grid[row - 1][col] = " "
+        
+    grid[row][col - 1] = " "
+        
+    grid[row][col + 1] = " "
+
+    grid[row + 1][col] = " "
+
+
+
+        
+
+def gameOver(root):
     None
 
+def showGameOver(root):
+    menuFrame.pack_forget()
+    gameOver(root)
+
+
+
+#---------------If player won functions-----------------------------------------------------
+def winGame(root):
+    None
+
+def showWinner(root):
+    menuFrame.pack_forget()
+    winGame(root)
 
 def checkWinner():
-    global buttons
-    for row in buttons:
-        for col in buttons:
-            if col == " ":
+    global grid, buttons, rows, columns
+    for row in range(rows):
+        for col in range(columns):
+            if grid[row + 1][col + 1] != "X" and buttons[row][col]["text"] == " ":
                 return False
-    
+            
+    print("You won")
     return True
+#---------------------------------------------------------------------------------------------
 
+#--------------------Grid functions-----------------------------------------------------------
 def generateMines():
     global grid, buttons, rows, columns
 
     for row in range(rows):
         for col in range(columns):
-            if random.random() < .50:
-                grid[row+1][col+1] = "X"
-    
+            if random.random() < 0.10:
+                grid[row + 1][col + 1] = "X"
 
 
 
-
-
-#---------------Grid/Setting functions-----------------------------------------------------------
 def changeGrid(newRows, newColumns):
     global rows, columns, grid, buttons
 
     rows = newRows
     columns = newColumns
 
-    grid.clear()
-    buttons.clear()
+    grid = [[" " for _ in range(columns + 2)] for _ in range(rows + 2)]
+    buttons = [[" " for _ in range(columns)] for _ in range(rows)]
 
-    createGrid(rows, columns)
-    menuLabel.config(text=f"Grid size is {rows} x {columns}")
+    menuLabel.config(text=f"Grid size: {rows} x {columns}")
+#-----------------------------------------------------------------------------------------------------
 
-def show_settings(root):
-    menuFrame.pack_forget()  # Hide the main menu frame
-    gameSettings(root)  # Create and show the settings frame
+#---------------------Starting and ending game functions----------------------------------------------
+def displayGame(root):
+    menuFrame.pack_forget()
+    gameStart(root)
 
+def gameStart(root):
+    global rows, columns, buttons, firstClick
+    firstClick = True
+    gameScreen = tk.Frame(root, padx=20, pady=20, bg="#f4f4f4")
+    gameScreen.pack()
 
-def gameSettings(root):
-    setting_frame = tk.Frame(root, padx=100, pady=100)
-    setting_frame.pack()
+    generateMines()
 
-    sixteenGrid = tk.Button(setting_frame, text="16 Size Grid", command=lambda: changeGrid(4, 4))
-    sixteenGrid.pack(pady=10)
+    for row in grid:
+        print(" | ".join(map(str, row)))
+        print("-" * (len(row) * 4 - 1))
 
-    thirtySixGrid = tk.Button(setting_frame, text="36 Size Grid", command=lambda: changeGrid(6, 6))
-    thirtySixGrid.pack(pady=10)
+    for row in range(rows):
+        for col in range(columns):
+            button = tk.Button(gameScreen, text=buttons[row][col], font='Helvetica 12 bold', height=1, width=3,
+                               command=lambda row=row, col=col: buttonClick(row, col, gameScreen))
+            button.grid(row=row, column=col)
+            buttons[row][col] = button
 
-    hundredFortyFourGrid = tk.Button(setting_frame, text="144 Size Grid", command=lambda: changeGrid(12, 12))
-    hundredFortyFourGrid.pack(pady=10)
-
-    back_button = tk.Button(setting_frame, text="Back", command=lambda: show_menu(setting_frame, root))
-    back_button.pack(pady=10)
-
-    return setting_frame
-
-
-def createGrid(rows, columns):
-    global grid, buttons
-    
-    #create the grid for the grid variable matrix
-    for i in range(rows+2):
-        row = []
-        for j in range(columns+2):
-            row.append(" ")
-        grid.append(row)
-    
-    #creates the grid for the buttons variable matrix
-    for i in range(rows):
-        row = []
-        for j in range(columns):
-            row.append(" ")
-        buttons.append(row)
-
-
-#------------------------------------------------------------------------------------------------- 
 
 
 def endGame(root):
     if messagebox.askokcancel("Exit", "Are you sure you want to quit?"):
         root.destroy()
 
+#------------------------------------------------------------------------------------------
 
-def show_menu(current_frame, root):
-    current_frame.pack_forget()  # Hide the current frame
-    menuFrame.pack()
-
-
+#---------Main Screen and Loop--------------------------------------------------------------
 def main():
     global menuFrame, menuLabel
     global rows, columns, grid, buttons
 
     root = tk.Tk()
     root.title("Mine Sweeper")
+    root.geometry("400x500")
+    root.configure(bg="#f4f4f4")
 
-    # Create a frame for the menu buttons
-    menuFrame = tk.Frame(root, padx=100, pady=100)
-    menuFrame.pack()
+    menuFrame = tk.Frame(root, bg="#f4f4f4", padx=20, pady=20)
+    menuFrame.pack(fill='both', expand=True)
 
-    menuLabel = tk.Label(menuFrame, text=f"Grid size is {rows} x {columns}", font=("Helvetica", 16), fg="blue")
-    menuLabel.pack(pady=20)
+    header = tk.Label(menuFrame, text="Mine Sweeper", font=("Helvetica", 24, "bold"), bg="#f4f4f4", fg="#333")
+    header.pack(pady=10)
 
+    menuLabel = tk.Label(menuFrame, text=f"Grid size: {rows} x {columns}", font=("Helvetica", 16), bg="#f4f4f4", fg="#555")
+    menuLabel.pack(pady=10)
 
-    # Create buttons for different options
-    start_button = tk.Button(menuFrame, text="Start Game", command=lambda: displayGame(root))
+    start_button = tk.Button(menuFrame, text="Start Game", font=("Helvetica", 14), bg="#4CAF50", fg="white", height=2, width=20,
+                             command=lambda: displayGame(root))
     start_button.pack(pady=10)
 
-    settings_button = tk.Button(menuFrame, text="Settings", command=lambda: show_settings(root))
-    settings_button.pack(pady=10)
+    settings_frame = tk.Frame(menuFrame, bg="#f4f4f4")
+    settings_frame.pack(pady=10)
 
-    exit_button = tk.Button(menuFrame, text="Exit", command=lambda: endGame(root))
-    exit_button.pack(pady=10)
+    grid_label = tk.Label(settings_frame, text="Grid Size:", font=("Helvetica", 16), bg="#f4f4f4", fg="#555")
+    grid_label.grid(row=0, column=0, padx=10, pady=5)
+
+    grid_64 = tk.Button(settings_frame, text="64", font=("Helvetica", 14), bg="#2196F3", fg="white", width=5,
+                        command=lambda: changeGrid(8, 8))
+    grid_64.grid(row=1, column=0, padx=10, pady=5)
+
+    grid_100 = tk.Button(settings_frame, text="100", font=("Helvetica", 14), bg="#2196F3", fg="white", width=5,
+                         command=lambda: changeGrid(10, 10))
+    grid_100.grid(row=1, column=1, padx=10, pady=5)
+
+    grid_144 = tk.Button(settings_frame, text="144", font=("Helvetica", 14), bg="#2196F3", fg="white", width=5,
+                         command=lambda: changeGrid(12, 12))
+    grid_144.grid(row=1, column=2, padx=10, pady=5)
+
+    exit_button = tk.Button(menuFrame, text="Exit", font=("Helvetica", 14), bg="#f44336", fg="white", height=2, width=20,
+                            command=lambda: endGame(root))
+    exit_button.pack(pady=20)
 
     root.mainloop()
+#------------------------------------------------------------------------
 
 
 if __name__ == "__main__":
