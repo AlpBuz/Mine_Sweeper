@@ -8,6 +8,9 @@ columns = 8
 grid = [[" " for _ in range(rows+2)] for _ in range(columns+2)]
 buttons = [[" " for _ in range(rows)] for _ in range(columns)]
 firstClick = True
+overlaw = None
+menuFrame, menuLabel = None, None
+gameScreen = None
 #---------------------------------
 
 def buttonClick(row, col, root):
@@ -24,8 +27,8 @@ def buttonClick(row, col, root):
                 revealConnectedCells(row, col)
             win = checkWinner()
             if win:
-                showWinner(root)
                 revalAll()
+                showWinner(root)
         else:
             buttons[row][col].config(text="X", fg="red")
             showGameOver(root)
@@ -80,7 +83,7 @@ def revealConnectedCells(row, col):
         if grid[current_row + 1][current_col + 1] == "X":
             continue
 
-        # Skip if cell is already revealed
+        
 
         bombs = checkSurrondingsBomb(current_row + 1, current_col + 1)
         buttons[current_row][current_col].config(text=str(bombs))
@@ -93,6 +96,7 @@ def revealConnectedCells(row, col):
                     if (newRow, newCol) not in visited:
                         stack.append((newRow, newCol))
                 else:
+                    #if section is already visited or the spot has been revealed already skip it
                     if (newRow, newCol) not in visited or buttons[newRow][newCol]["text"] != " ":
                         stack.append((newRow, newCol))
 
@@ -142,22 +146,47 @@ def firstClickGridChange(row, col):
 
         
 
-def gameOver(root):
-    None
 
 def showGameOver(root):
-    menuFrame.pack_forget()
-    gameOver(root)
+    global gameScreen
+
+    # Clear existing widgets from gameScreen
+    for widget in gameScreen.winfo_children():
+        widget.destroy()
+
+    # Add "Game Over" widgets to gameScreen
+    tk.Label(gameScreen, text="Game Over", font=("Helvetica", 24, "bold"), bg="#f4f4f4", fg="#f44336").pack(pady=10)
+    tk.Label(gameScreen, text="You Hit a Mine", font=("Helvetica", 24, "bold"), bg="#f4f4f4", fg="#f44336").pack(pady=10)
+    
+    tk.Button(gameScreen, text="Main Menu", font=("Helvetica", 14), bg="#4CAF50", fg="white", height=2, width=20,
+              command=lambda: showMenu(root)).pack(pady=10)
+    
+    tk.Button(gameScreen, text="Exit", font=("Helvetica", 14), bg="#f44336", fg="white", height=2, width=20,
+              command= lambda: [endGame(root), gameScreen.destroy()]).pack(pady=10)
+
+
+
+
 
 
 
 #---------------If player won functions-----------------------------------------------------
-def winGame(root):
-    None
-
 def showWinner(root):
-    menuFrame.pack_forget()
-    winGame(root)
+    global gameScreen
+
+    # Clear existing widgets from gameScreen
+    for widget in gameScreen.winfo_children():
+        widget.destroy()
+
+    # Add "Game Over" widgets to gameScreen
+    tk.Label(gameScreen, text="You Win", font=("Helvetica", 24, "bold"), bg="#f4f4f4", fg="green").pack(pady=10)
+    
+    tk.Button(gameScreen, text="Main Menu", font=("Helvetica", 14), bg="#4CAF50", fg="white", height=2, width=20,
+              command=lambda: showMenu(root)).pack(pady=10)
+    
+    tk.Button(gameScreen, text="Exit", font=("Helvetica", 14), bg="#f44336", fg="white", height=2, width=20,
+              command= lambda: [endGame(root), gameScreen.destroy()]).pack(pady=10)
+    
 
 def checkWinner():
     global grid, buttons, rows, columns
@@ -187,6 +216,9 @@ def changeGrid(newRows, newColumns):
     rows = newRows
     columns = newColumns
 
+    grid.clear()
+    buttons.clear()
+
     grid = [[" " for _ in range(columns + 2)] for _ in range(rows + 2)]
     buttons = [[" " for _ in range(columns)] for _ in range(rows)]
 
@@ -199,7 +231,7 @@ def displayGame(root):
     gameStart(root)
 
 def gameStart(root):
-    global rows, columns, buttons, firstClick
+    global rows, columns, buttons, firstClick, gameScreen
     firstClick = True
     gameScreen = tk.Frame(root, padx=20, pady=20, bg="#f4f4f4")
     gameScreen.pack()
@@ -226,14 +258,8 @@ def endGame(root):
 #------------------------------------------------------------------------------------------
 
 #---------Main Screen and Loop--------------------------------------------------------------
-def main():
-    global menuFrame, menuLabel
-    global rows, columns, grid, buttons
-
-    root = tk.Tk()
-    root.title("Mine Sweeper")
-    root.geometry("400x500")
-    root.configure(bg="#f4f4f4")
+def showMenu(root):
+    global menuFrame, menuLabel, rows, columns
 
     menuFrame = tk.Frame(root, bg="#f4f4f4", padx=20, pady=20)
     menuFrame.pack(fill='both', expand=True)
@@ -245,7 +271,7 @@ def main():
     menuLabel.pack(pady=10)
 
     start_button = tk.Button(menuFrame, text="Start Game", font=("Helvetica", 14), bg="#4CAF50", fg="white", height=2, width=20,
-                             command=lambda: displayGame(root))
+                             command=lambda: [changeGrid(rows, columns), displayGame(root)])
     start_button.pack(pady=10)
 
     settings_frame = tk.Frame(menuFrame, bg="#f4f4f4")
@@ -270,7 +296,15 @@ def main():
                             command=lambda: endGame(root))
     exit_button.pack(pady=20)
 
+def main():
+    root = tk.Tk()
+    root.title("Mine Sweeper")
+    root.geometry("400x500")
+    root.configure(bg="#f4f4f4")
+    showMenu(root)
     root.mainloop()
+
+
 #------------------------------------------------------------------------
 
 
