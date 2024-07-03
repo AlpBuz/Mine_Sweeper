@@ -162,7 +162,7 @@ def showGameOver(root):
               command=lambda: showMenu(root)).pack(pady=10)
     
     tk.Button(gameScreen, text="Exit", font=("Helvetica", 14), bg="#f44336", fg="white", height=2, width=20,
-              command= lambda: [endGame(root), gameScreen.destroy()]).pack(pady=10)
+              command= lambda: [endGame(root)]).pack(pady=10)
 
 
 
@@ -205,7 +205,7 @@ def generateMines():
 
     for row in range(rows):
         for col in range(columns):
-            if random.random() < 0.10:
+            if random.random() < 0.2:
                 grid[row + 1][col + 1] = "X"
 
 
@@ -253,13 +253,23 @@ def gameStart(root):
 
 def endGame(root):
     if messagebox.askokcancel("Exit", "Are you sure you want to quit?"):
+        if gameScreen != None:
+            gameScreen.destroy()
+        if menuFrame != None:    
+            menuFrame.destroy()
         root.destroy()
 
 #------------------------------------------------------------------------------------------
 
 #---------Main Screen and Loop--------------------------------------------------------------
 def showMenu(root):
-    global menuFrame, menuLabel, rows, columns
+    global menuFrame, menuLabel, rows, columns, gameScreen
+
+    if gameScreen != None:
+        for widget in gameScreen.winfo_children():
+            widget.destroy()
+        gameScreen = None
+
 
     menuFrame = tk.Frame(root, bg="#f4f4f4", padx=20, pady=20)
     menuFrame.pack(fill='both', expand=True)
